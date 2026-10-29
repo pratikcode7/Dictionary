@@ -23,6 +23,7 @@ body[data-state="think"],
 body[data-state="scan"] { --glow: #7ff3ff; --glow-soft: rgba(127, 243, 255, 0.24); --glow-line: rgba(127, 243, 255, 0.45); }
 body[data-state="apply"],
 body[data-state="done"] { --glow: #3dffa8; --glow-soft: rgba(61, 255, 168, 0.18); --glow-line: rgba(61, 255, 168, 0.35); }
+body[data-state="listen"] { --glow: #c08bff; --glow-soft: rgba(192, 139, 255, 0.22); --glow-line: rgba(192, 139, 255, 0.42); }
 body[data-state="error"] { --glow: #ff4d6d; --glow-soft: rgba(255, 77, 109, 0.18); --glow-line: rgba(255, 77, 109, 0.38); }
 
 * { box-sizing: border-box; }
@@ -278,7 +279,7 @@ body[data-state="ready"] .core-hint { animation: blink 1.6s ease-in-out infinite
 .log li.typing::after { content: "▌"; color: var(--glow); animation: blink 0.6s steps(2) infinite; }
 
 /* ---------- dock ---------- */
-.dock { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.dock { display: grid; grid-template-columns: 1fr 1fr auto 1fr 1fr; align-items: end; gap: 6px; }
 .dock-btn {
   display: flex;
   flex-direction: column;
@@ -297,6 +298,32 @@ body[data-state="ready"] .core-hint { animation: blink 1.6s ease-in-out infinite
 .dock-btn:active { box-shadow: 0 0 18px var(--glow-soft) inset; }
 .dock-btn:disabled { opacity: 0.35; }
 .dock-btn.attn { border-color: var(--glow); box-shadow: 0 0 16px var(--glow-soft); }
+
+.mic-btn {
+  position: relative;
+  width: 66px;
+  height: 66px;
+  margin-top: -20px;
+  border-radius: 50%;
+  border: 1.5px solid var(--glow);
+  background: radial-gradient(circle, var(--glow-soft) 0%, rgba(1, 8, 15, 0.95) 70%);
+  box-shadow: 0 0 22px var(--glow-soft), inset 0 0 14px var(--glow-soft);
+  touch-action: manipulation;
+}
+.mic-btn svg { width: 28px; height: 28px; fill: none; stroke: var(--glow); stroke-width: 1.8; stroke-linecap: round; filter: drop-shadow(0 0 4px var(--glow)); }
+.mic-btn:active { transform: scale(0.95); }
+.mic-btn::before,
+.mic-btn::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 1.5px solid var(--glow);
+  opacity: 0;
+  pointer-events: none;
+}
+.mic-btn.live::before { animation: ripple 1.4s ease-out infinite; }
+.mic-btn.live::after { animation: ripple 1.4s ease-out 0.7s infinite; }
 
 /* ---------- sheets ---------- */
 .sheet { position: fixed; inset: 0; z-index: 10; display: flex; align-items: flex-end; justify-content: center; }
@@ -472,9 +499,12 @@ input:focus, select:focus { outline: none; border-color: var(--glow); box-shadow
 @keyframes blink { 50% { opacity: 0.35; } }
 @keyframes fade { from { opacity: 0; } }
 @keyframes rise { from { transform: translateY(40px); opacity: 0; } }
+@keyframes ripple { from { transform: scale(1); opacity: 0.8; } to { transform: scale(1.7); opacity: 0; } }
 
 @media (prefers-reduced-motion: reduce) {
   .core, .core-hint, .chip.busy i, .log li.typing::after { animation: none !important; }
+  .mic-btn.live::before { animation: none; opacity: 0.8; }
+  .mic-btn.live::after { animation: none; }
   .sheet-panel, .sheet-backdrop { animation: none; }
 }
 

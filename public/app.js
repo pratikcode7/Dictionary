@@ -107,6 +107,8 @@ const HINTS = {
   apply: "UPDATING",
   done: "MISSION COMPLETE",
   error: "TAP TO RETRY",
+  listen: "LISTENING…",
+  await: "TAP · ADD SCREENSHOTS",
 };
 let thinkTimer;
 function setMode(mode) {
@@ -121,7 +123,7 @@ function setMode(mode) {
       ui.consoleState.textContent = `ANALYSING ${Math.round((Date.now() - started) / 1000)}s`;
     }, 1000);
   }
-  rings.target = { boot: 1, idle: 1, auth: 2.5, scan: 4, think: 7, ready: 1.4, apply: 5, done: 1.2, error: 0.4 }[mode] ?? 1;
+  rings.target = { boot: 1, idle: 1, auth: 2.5, scan: 4, think: 7, ready: 1.4, apply: 5, done: 1.2, error: 0.4, listen: 3, await: 1.6 }[mode] ?? 1;
 }
 
 function setChip(id, cls) {
@@ -416,7 +418,7 @@ async function runMission(files) {
     setMode("ready");
     $("#btnReview").disabled = false;
     $("#btnReview").classList.add("attn");
-    speak(`I found ${moves} new dates. Review the brief and engage.`);
+    speak(`I found ${moves} new dates. Say engage to apply them, or review to hear them.`);
     openSheet("plan");
   } catch (err) {
     setMode("error");
@@ -570,7 +572,7 @@ async function engage() {
   setMode(done === moves.length ? "done" : "error");
   $("#btnReview").classList.remove("attn");
   updateEngage();
-  log(`Mission complete. ${done} of ${moves.length} hearings moved. Undo is in Settings.`, done ? "ok" : "err");
+  log(`Mission complete. ${done} of ${moves.length} hearings moved. Say "undo" or tap UNDO to revert.`, done ? "ok" : "err");
   speak(done === moves.length ? `All done. ${done} hearings updated.` : `${done} of ${moves.length} hearings updated. Check the failures.`);
 }
 
@@ -738,6 +740,186 @@ function liveItem(ev) {
   return li;
 }
 
+// ---------- voice commands ----------
+let recognizer = null;
+
+function reply(text, kind = "") {
+  log(`CLERAK: ${text}`, kind);
+  speak(text);
+}
+
+function greeting() {
+  const hour = Number(new Date().toLocaleString("en-GB", { timeZone: "Asia/Kolkata", hour: "numeric", hour12: false }));
+  return hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+}
+
+const RECOGNITION_ERRORS = {
+  "not-allowed": "Microphone is blocked. Allow the microphone for this site in your browser settings.",
+  "service-not-allowed": "Speech recognition is off. On iPhone: Settings → General → Keyboard → Enable Dictation.",
+  "no-speech": "I didn't hear anything. Tap the mic and speak.",
+  "audio-capture": "No microphone found.",
+  network: "Voice recognition needs an internet connection.",
+};
+
+function listen() {
+  if (recognizer) {
+    recognizer.stop();
+    return;
+  }
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!Recognition) {
+    reply("Voice input isn't available in this browser. Open Clerak in Safari or Chrome.", "warn");
+    return;
+  }
+  speak(""); // unlocks spoken replies on iPhone while we still have the tap
+  const r = new Recognition();
+  r.lang = "en-IN";
+  r.interimResults = true;
+  r.continuous = false;
+  r.maxAlternatives = 3;
+  const resume = state.mode;
+  let heard = [];
+  r.onstart = () => {
+    setMode("listen");
+    $("#btnMic").classList.add("live");
+  };
+  r.onresult = (e) => {
+    const result = e.results[e.results.length - 1];
+    ui.hint.textContent = result[0].transcript.toUpperCase().slice(-26);
+    if (result.isFinal) {
+      heard = Array.from({ length: result.length }, (_, i) => result[i].transcript.trim()).filter(Boolean);
+    }
+  };
+  r.onerror = (e) => {
+    const msg = RECOGNITION_ERRORS[e.error];
+    if (msg) log(msg, e.error === "no-speech" ? "dim" : "err");
+  };
+  r.onend = () => {
+    recognizer = null;
+    $("#btnMic").classList.remove("live");
+    if (state.mode === "listen") setMode(["boot", "listen", "error"].includes(resume) ? "idle" : resume);
+    if (heard.length) handleCommand(heard);
+  };
+  recognizer = r;
+  try {
+    r.start();
+  } catch (err) {
+    recognizer = null;
+    log(`Mic error: ${err.message}`, "err");
+  }
+}
+
+function spokenDay(text) {
+  const today = localISO(new Date());
+  if (/\bday after tomorrow\b/.test(text)) return addDays(today, 2);
+  if (/\btomorrow\b/.test(text)) return addDays(today, 1);
+  if (/\byesterday\b/.test(text)) return addDays(today, -1);
+  if (/\b(today|aaj)\b/.test(text)) return today;
+  return "";
+}
+
+function voiceUpdate() {
+  if (!preflight()) return;
+  if (!state.config.aiReady) {
+    reply("My AI key is missing on the server. Add ANTHROPIC_API_KEY in Vercel.", "err");
+    return;
+  }
+  setMode("await");
+  reply(`On it. Tap the core and pick your eCourts screenshots for ${fmtSpoken(state.boardDate)}.`);
+}
+
+function voiceEngage() {
+  if (!state.plan) return reply('There is nothing to engage yet. Say "update the dates" first.');
+  if (!selectedMoves().length) return reply("Nothing is waiting to move. The ready hearings are already updated.");
+  openSheet("plan");
+  engage();
+}
+
+function voiceReview() {
+  if (!state.plan) return reply('Nothing to review yet. Say "update the dates" first.');
+  openSheet("plan");
+  const moves = state.plan.items.filter((i) => i.status === "move" && eventById(i.eventId));
+  const need = state.plan.items.length - moves.length;
+  const spoken = moves.slice(0, 5).map((i) => `${eventById(i.eventId).summary} to ${fmtSpoken(i.newDate)}`);
+  const more = moves.length > 5 ? `, and ${moves.length - 5} more` : "";
+  reply(
+    `${moves.length} hearings can move${spoken.length ? `: ${spoken.join(", ")}${more}` : ""}. ` +
+      `${need} need your attention. Say engage to apply.`,
+  );
+}
+
+async function voiceStatus() {
+  if (!googleToken()) return reply('Your Google calendar is not linked yet. Say "update the dates" to link it.');
+  try {
+    const events = await loadEvents();
+    let msg = `${events.length} hearings in your calendar for ${fmtSpoken(state.boardDate)}.`;
+    if (state.plan) {
+      const moved = Number($("#statMoved").textContent) || 0;
+      const need = state.plan.items.filter((i) => i.status !== "move").length;
+      msg += ` ${moved} updated, ${selectedMoves().length} ready to move, ${need} need your attention.`;
+    }
+    reply(msg);
+  } catch (err) {
+    reply(err.message, "err");
+  }
+}
+
+const COMMANDS = [
+  {
+    test: /\b(stop|cancel|quiet|silence|never ?mind|bas|ruko)\b/,
+    run: () => {
+      closeSheets();
+      if ("speechSynthesis" in window) speechSynthesis.cancel();
+      log("Standing by.", "dim");
+    },
+  },
+  {
+    test: /\b(help|what can you do|commands?)\b/,
+    run: () =>
+      reply(
+        'Say "update the dates" to start. Then "engage" to move them, "review" to hear the list, ' +
+          '"status" for a summary, "undo" to put them back, or "live check" for eCourts by CNR. ' +
+          'You can add "tomorrow" or "yesterday" to change the day.',
+      ),
+  },
+  { test: /\b(undo|revert|restore|put (them|it) back|wapas|vapas)\b/, run: () => { reply("Reverting the last update."); undoLast(); } },
+  { test: /\b(review|brief|read|show( me)?( the)? (list|plan|dates|cases))\b/, run: voiceReview },
+  { test: /\b(engage|confirm|apply|go ahead|proceed|yes|do it|move (them|all|it)|haan|kar do)\b/, run: voiceEngage },
+  { test: /\b(live|cnr|captcha|e ?courts? (check|link|site|website))\b/, run: () => { reply("Opening the live eCourts link."); openLive(); } },
+  { test: /\b(settings?|setup|passcode)\b/, run: () => { reply("Opening settings."); openSheet("settings"); } },
+  { test: /\b(status|report|summary|how many|kitne|pending)\b/, run: voiceStatus },
+  {
+    test: /\b(update|start|begin|run|sync|scan|dates?|hearings?|tarikh|taarikh|tareekh|badlo|screenshots?|calendar)\b/,
+    run: voiceUpdate,
+  },
+  {
+    test: /\b(hello|hi|hey|namaste|namaskar|good (morning|afternoon|evening)|clerak|clerk)\b/,
+    run: () => reply(`${greeting()}. Ready when you are. Say "update the dates".`),
+  },
+];
+
+function handleCommand(alternatives) {
+  log(`YOU: "${alternatives[0]}"`, "dim");
+  if (state.busy) return reply("One moment, I'm still working.");
+  for (const text of alternatives.map((t) => t.toLowerCase())) {
+    const day = spokenDay(text);
+    if (day && /\b(change|set|switch|board|make it)\b/.test(text) && !/\b(update|start|run|scan)\b/.test(text)) {
+      setBoardDate(day);
+      return reply(`Board date set to ${fmtSpoken(day)}.`);
+    }
+    const cmd = COMMANDS.find((c) => c.test.test(text));
+    if (cmd) {
+      if (day && day !== state.boardDate) {
+        setBoardDate(day);
+        log(`Board date: ${fmtShort(day)}.`, "dim");
+      }
+      cmd.run();
+      return;
+    }
+  }
+  reply('Sorry, I didn\'t catch that. Say "update the dates", or "help".');
+}
+
 // ---------- sheets ----------
 function openSheet(name) {
   closeSheets();
@@ -862,7 +1044,7 @@ function animateRings(now) {
     g.setAttribute("transform", `rotate(${rings.angle[i].toFixed(2)})`);
   });
 
-  const energetic = rings.talking || state.mode === "think" || state.mode === "scan" || state.mode === "apply";
+  const energetic = rings.talking || ["think", "scan", "apply", "listen"].includes(state.mode);
   for (const [i, b] of rings.bars.entries()) {
     const wave = (Math.sin(now / 260 + i * 0.5) + 1) * 0.5;
     const goal = energetic && !reducedMotion ? 4 + Math.random() * 16 + wave * 6 : 3 + wave * 4;
@@ -979,6 +1161,7 @@ async function boot() {
       ? "Tap the core and pick your eCourts screenshots."
       : "Tap the core to link Google Calendar.",
   );
+  log('Or tap the mic and say "update the dates". Say "help" for all commands.', "dim");
   if (redirect?.ok) speak("Google calendar linked. Tap the core when ready.");
 }
 
@@ -988,5 +1171,7 @@ $("#btnEngage").addEventListener("click", engage);
 $("#btnReview").addEventListener("click", () => state.plan && openSheet("plan"));
 $("#btnLive").addEventListener("click", openLive);
 $("#btnSettings").addEventListener("click", () => openSheet("settings"));
+$("#btnMic").addEventListener("click", listen);
+$("#btnUndoDock").addEventListener("click", undoLast);
 
 boot();

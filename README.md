@@ -77,6 +77,23 @@ The first time, open ⚙ **Settings** and enter your passcode, then tap the core
 
 Google sign-in lasts one hour. After that, Clerak asks you to tap once to reconnect.
 
+### Talk to Clerak 🎙
+Tap the **mic** in the centre of the bottom bar and speak. Clerak answers out loud (turn voice off in Setup).
+
+| Say | Clerak does |
+|---|---|
+| "update the dates" / "tarikh badlo" | gets ready. Then tap the core to pick screenshots (iPhone only opens the photo picker on a tap) |
+| "update tomorrow's dates" | switches the board date to tomorrow first |
+| "review" / "read the list" | opens the list and reads out the new dates |
+| "engage" / "yes" / "do it" | moves the selected hearings |
+| "status" / "how many" | tells you how many hearings, updated, pending |
+| "undo" | puts the last moved hearings back |
+| "set the date to yesterday" | changes the board date |
+| "live check" | opens the live eCourts lookup |
+| "help" / "stop" | lists commands / stops talking |
+
+Voice input uses Safari's built-in speech recognition. If the mic does nothing on iPhone, turn on **Settings → General → Keyboard → Enable Dictation** and allow the microphone for the site. If it doesn't work from the home-screen icon, open Clerak in Safari.
+
 ---
 
 ## Project layout
