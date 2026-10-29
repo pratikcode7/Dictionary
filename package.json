@@ -1,0 +1,17 @@
+{
+  "name": "clerak",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Clerak - AI clerk that moves advocates' Google Calendar hearings to the next date from eCourts",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "check": "node --check api/analyze.js && node --check api/config.js && node --check api/ecourts/captcha.js && node --check api/ecourts/case.js && node --check lib/ecourts.js && node --check lib/passcode.js && node --check public/app.js",
+    "test": "node --test \"test/*.test.js\""
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0"
+  }
+}

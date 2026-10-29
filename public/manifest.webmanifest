@@ -1,0 +1,14 @@
+{
+  "name": "Clerak",
+  "short_name": "Clerak",
+  "description": "AI clerk that moves your hearings to the next eCourts date.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#01050b",
+  "theme_color": "#01050b",
+  "icons": [
+    { "src": "/icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

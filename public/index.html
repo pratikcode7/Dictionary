@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Clerak</title>
+  <meta name="description" content="Clerak moves your court hearings in Google Calendar to the next date from eCourts.">
+  <meta name="theme-color" content="#01050b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Clerak">
+  <link rel="apple-touch-icon" href="/icon-180.png">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body data-state="boot">
+  <canvas id="particles" aria-hidden="true"></canvas>
+  <div class="grid-bg" aria-hidden="true"></div>
+  <div class="vignette" aria-hidden="true"></div>
+  <div class="scanlines" aria-hidden="true"></div>
+
+  <div class="app">
+    <header class="hud-top">
+      <button class="hud-block" id="boardDateBtn" type="button" aria-label="Change board date">
+        <span class="hud-label">BOARD DATE</span>
+        <span class="hud-value" id="boardDateText">--</span>
+      </button>
+      <div class="hud-brand" aria-hidden="true">
+        <span class="hud-brand-line"></span>
+        <span class="hud-brand-text">LEGAL OPS</span>
+        <span class="hud-brand-line"></span>
+      </div>
+      <div class="hud-block right">
+        <span class="hud-label">IST</span>
+        <span class="hud-value" id="clock">--:--:--</span>
+      </div>
+    </header>
+
+    <div class="chips" role="status">
+      <span class="chip" id="chipGoogle"><i></i>CALENDAR</span>
+      <span class="chip" id="chipAI"><i></i>AI CORE</span>
+      <span class="chip" id="chipCourts"><i></i>eCOURTS</span>
+    </div>
+
+    <main class="stage">
+      <button class="orb" id="orb" type="button" aria-label="Clerak: update today's hearing dates">
+        <svg class="rings" id="rings" viewBox="-230 -230 460 460" aria-hidden="true">
+          <defs>
+            <radialGradient id="haze" r="0.5">
+              <stop offset="0.55" stop-color="var(--glow)" stop-opacity="0"/>
+              <stop offset="0.78" stop-color="var(--glow)" stop-opacity="0.16"/>
+              <stop offset="1" stop-color="var(--glow)" stop-opacity="0"/>
+            </radialGradient>
+            <linearGradient id="sweepGrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="var(--glow)" stop-opacity="0"/>
+              <stop offset="1" stop-color="var(--glow)" stop-opacity="0.55"/>
+            </linearGradient>
+          </defs>
+          <circle r="228" fill="url(#haze)"/>
+          <g id="bars" class="bars"></g>
+          <g class="ring" data-speed="6"><circle r="192" class="ring-ticks"/></g>
+          <g class="ring" data-speed="-10"><circle r="176" class="ring-arcs"/></g>
+          <g class="ring" data-speed="16"><circle r="161" class="ring-fine"/></g>
+          <g class="ring" data-speed="-24"><circle r="145" class="ring-thick"/></g>
+          <g class="ring" data-speed="34"><circle r="128" class="ring-dots"/></g>
+          <g class="ring" data-speed="-14" id="markers"></g>
+          <g class="ring sweep" data-speed="120"><path d="M0 0 L112 0 A112 112 0 0 0 79.2 -79.2 Z" fill="url(#sweepGrad)"/></g>
+          <circle r="112" class="ring-inner"/>
+        </svg>
+        <span class="core">
+          <span class="core-hex" aria-hidden="true"></span>
+          <span class="core-name">CLERAK</span>
+          <span class="core-hint" id="orbHint">INITIALISING</span>
+        </span>
+      </button>
+
+      <div class="stats">
+        <div class="stat"><b id="statHearings">--</b><span>HEARINGS</span></div>
+        <div class="stat"><b id="statMoved">--</b><span>UPDATED</span></div>
+        <div class="stat"><b id="statPending">--</b><span>NEED YOU</span></div>
+      </div>
+    </main>
+
+    <section class="console" aria-label="Clerak log">
+      <div class="console-head">
+        <span>// CLERAK TERMINAL</span>
+        <span id="consoleState">BOOT</span>
+      </div>
+      <ol class="log" id="log" aria-live="polite"></ol>
+    </section>
+
+    <nav class="dock">
+      <button class="dock-btn" id="btnLive" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3.2"/></svg>
+        <span>LIVE eCOURTS</span>
+      </button>
+      <button class="dock-btn" id="btnReview" type="button" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h7"/><path d="M15 17l2 2 4-4"/></svg>
+        <span>REVIEW</span>
+      </button>
+      <button class="dock-btn" id="btnSettings" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg>
+        <span>SETTINGS</span>
+      </button>
+    </nav>
+  </div>
+
+  <input type="file" id="filePicker" accept="image/*" multiple hidden>
+
+  <!-- Mission brief: what Clerak wants to change -->
+  <div class="sheet" id="planSheet" hidden>
+    <div class="sheet-backdrop" data-close></div>
+    <section class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="planTitle">
+      <header class="sheet-head">
+        <div>
+          <p class="sheet-kicker">MISSION BRIEF</p>
+          <h2 id="planTitle">Hearing updates</h2>
+        </div>
+        <button class="icon-btn" type="button" data-close aria-label="Close">&times;</button>
+      </header>
+      <div id="planWarn" class="notice" hidden></div>
+      <ul class="plan-list" id="planList"></ul>
+      <details class="extra" id="extraCases" hidden>
+        <summary id="extraSummary"></summary>
+        <ul id="extraList"></ul>
+      </details>
+      <footer class="sheet-foot">
+        <button class="cta" id="btnEngage" type="button">ENGAGE</button>
+      </footer>
+    </section>
+  </div>
+
+  <!-- Live eCourts check by CNR (captcha typed by the advocate) -->
+  <div class="sheet" id="liveSheet" hidden>
+    <div class="sheet-backdrop" data-close></div>
+    <section class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="liveTitle">
+      <header class="sheet-head">
+        <div>
+          <p class="sheet-kicker">LIVE eCOURTS LINK</p>
+          <h2 id="liveTitle">Check by CNR</h2>
+        </div>
+        <button class="icon-btn" type="button" data-close aria-label="Close">&times;</button>
+      </header>
+      <p class="sheet-note">Clerak asks eCourts directly for each hearing. eCourts needs one captcha per case. Clerak saves a CNR in the event notes the first time you add one.</p>
+      <ul class="live-list" id="liveList"></ul>
+    </section>
+  </div>
+
+  <!-- Settings -->
+  <div class="sheet" id="settingsSheet" hidden>
+    <div class="sheet-backdrop" data-close></div>
+    <section class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <header class="sheet-head">
+        <div>
+          <p class="sheet-kicker">SYSTEM</p>
+          <h2 id="settingsTitle">Settings</h2>
+        </div>
+        <button class="icon-btn" type="button" data-close aria-label="Close">&times;</button>
+      </header>
+      <div class="form">
+        <label class="field">
+          <span>Board date (the day whose hearings you are updating)</span>
+          <input type="date" id="boardDateInput">
+        </label>
+        <label class="field">
+          <span>Calendar</span>
+          <select id="calendarSelect"><option value="primary">My calendar</option></select>
+        </label>
+        <label class="field" id="passcodeField">
+          <span>Clerak passcode</span>
+          <input type="password" id="passcodeInput" autocomplete="current-password" placeholder="Set in Vercel as CLERAK_PASSCODE">
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="voiceToggle">
+          <span>Voice replies</span>
+        </label>
+        <div class="form-actions">
+          <button class="ghost" type="button" id="btnUndo">Undo last update</button>
+          <button class="ghost" type="button" id="btnGoogle">Connect Google</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="/app.js" type="module"></script>
+</body>
+</html>
