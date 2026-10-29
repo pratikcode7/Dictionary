@@ -2,6 +2,8 @@
 
 Every day an advocate opens the **eCourts Services** app, reads the next date of each case heard today, then opens **Google Calendar** and moves each hearing by hand. Clerak does that for you from your iPhone.
 
+**Live app:** <https://dictionary-two-theta.vercel.app> (Google Cloud project `clerak`, OAuth client "Clerak web")
+
 **One tap:** tap the glowing **CLERAK** core, pick your eCourts *Todays Case List* screenshots, review the list, then tap **ENGAGE**. Every hearing moves to its next date.
 
 ---
