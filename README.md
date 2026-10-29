@@ -32,11 +32,11 @@ Every day an advocate opens the **eCourts Services** app, reads the next date of
 
 ## One-time setup (about 20 minutes)
 
-You need three things: an **Anthropic API key** (the AI), a **Google OAuth Client ID** (calendar access) and a free **Vercel** account (hosting).
+You need a free **Vercel** account (hosting) and a **Google OAuth Client ID** (calendar access).
 
-### 1. Anthropic API key
-1. Go to <https://console.anthropic.com> → *API Keys* → **Create Key**.
-2. Add a little credit under *Billing*. A daily run with 3–4 screenshots costs a few rupees.
+### 1. AI access (nothing to paste)
+On Vercel, Clerak calls Claude through **Vercel AI Gateway**, which signs in automatically with the deployment's own OIDC token, so no API key is needed. Usage is billed to your Vercel account; Vercel gives free monthly AI Gateway credit once a payment method is on file (Vercel → AI Gateway).
+Optional: set `ANTHROPIC_API_KEY` to call Anthropic directly instead.
 
 ### 2. Deploy to Vercel
 1. Sign in at <https://vercel.com> with GitHub.
@@ -61,7 +61,7 @@ Vercel → your project → *Settings → Environment Variables*:
 
 | Name | Value |
 |---|---|
-| `ANTHROPIC_API_KEY` | your key from step 1 |
+| `ANTHROPIC_API_KEY` | optional: only to bypass AI Gateway and call Anthropic directly |
 | `GOOGLE_CLIENT_ID` | optional: the Client ID from step 3 (or paste it in Clerak's SETUP instead) |
 | `CLERAK_PASSCODE` | any secret word. This stops strangers who find your link from using your AI credit. |
 

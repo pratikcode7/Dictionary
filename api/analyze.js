@@ -1,8 +1,17 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { getVercelOidcToken } from "@vercel/oidc";
 import { checkPasscode } from "../lib/passcode.js";
 import { buildPlan, isIsoDate } from "../lib/plan.js";
 
-let client;
+const GATEWAY_URL = "https://ai-gateway.vercel.sh";
+
+// Uses an Anthropic key when one is set. Otherwise calls Claude through Vercel AI Gateway,
+// which signs in with the deployment's own OIDC token, so no key has to be created or pasted.
+async function aiClient() {
+  if (process.env.ANTHROPIC_API_KEY) return { client: new Anthropic(), gateway: false };
+  const token = process.env.AI_GATEWAY_API_KEY || (await getVercelOidcToken());
+  return { client: new Anthropic({ apiKey: token, baseURL: GATEWAY_URL }), gateway: true };
+}
 
 const MAX_IMAGES = 8;
 const DATA_URL = /^data:(image\/(?:jpeg|png|webp|gif));base64,([A-Za-z0-9+/=]+)$/;
@@ -95,21 +104,31 @@ export default async function handler(req, res) {
     text: `Board date: ${boardDate}\n\nGoogle Calendar events on the board date:\n${JSON.stringify(calendar, null, 1)}`,
   });
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return res.status(500).json({ error: "ANTHROPIC_API_KEY is not set on the server (Vercel > Settings > Environment Variables)." });
+  let ai;
+  try {
+    ai = await aiClient();
+  } catch {
+    return res.status(500).json({
+      error: "No AI access: deploy on Vercel (uses AI Gateway automatically) or set ANTHROPIC_API_KEY.",
+    });
   }
-  client ??= new Anthropic();
+
+  const request = {
+    max_tokens: 16000,
+    output_config: { effort: "high", format: { type: "json_schema", schema: SCHEMA } },
+    system: SYSTEM,
+    messages: [{ role: "user", content }],
+  };
 
   try {
-    const response = await client.beta.messages.create({
-      model: "claude-opus-5-5",
-      max_tokens: 16000,
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
-      output_config: { effort: "high", format: { type: "json_schema", schema: SCHEMA } },
-      system: SYSTEM,
-      messages: [{ role: "user", content }],
-    });
+    const response = ai.gateway
+      ? await ai.client.messages.create({ model: "anthropic/claude-opus-5.5", ...request })
+      : await ai.client.beta.messages.create({
+          model: "claude-opus-5-5",
+          betas: ["server-side-fallback-2026-07-01"],
+          fallbacks: "default",
+          ...request,
+        });
 
     if (response.stop_reason === "refusal") {
       return res.status(422).json({ error: "The AI declined to read these screenshots. Try clearer screenshots." });
@@ -124,8 +143,20 @@ export default async function handler(req, res) {
     const plan = buildPlan({ eventIds: calendar.map((e) => e.event_id), extraction, boardDate });
     return res.status(200).json(plan);
   } catch (err) {
+    if (err instanceof Anthropic.APIError && /customer_verification_required/.test(JSON.stringify(err.error ?? ""))) {
+      return res.status(402).json({
+        error: "Vercel AI Gateway needs a payment method on your Vercel account to unlock its free monthly credit. Vercel → AI Gateway → add a card.",
+      });
+    }
+    if (err instanceof Anthropic.APIError && /insufficient_funds|quota_for_entity_exceeded/.test(JSON.stringify(err.error ?? ""))) {
+      return res.status(402).json({ error: "Vercel AI Gateway credit is used up. Add credit in Vercel → AI Gateway." });
+    }
     if (err instanceof Anthropic.AuthenticationError) {
-      return res.status(500).json({ error: "ANTHROPIC_API_KEY on the server is missing or invalid." });
+      return res.status(500).json({
+        error: ai.gateway
+          ? "Vercel AI Gateway sign-in failed. Check Vercel → Settings → Security → OIDC Federation is on."
+          : "ANTHROPIC_API_KEY on the server is invalid.",
+      });
     }
     if (err instanceof Anthropic.RateLimitError) {
       return res.status(429).json({ error: "AI is busy (rate limited). Wait a minute and try again." });
