@@ -191,11 +191,15 @@ function googleToken() {
   return g && g.exp > Date.now() ? g.token : null;
 }
 
+// A Client ID pasted in Setup wins over the server's GOOGLE_CLIENT_ID (it is not a secret).
+const googleClientId = () => store.get("googleClientId", "") || state.config.googleClientId;
+const CLIENT_ID_PATTERN = /^[\w-]+\.apps\.googleusercontent\.com$/;
+
 function beginGoogleLogin() {
   const nonce = crypto.randomUUID();
   store.set("oauthState", nonce);
   const params = new URLSearchParams({
-    client_id: state.config.googleClientId,
+    client_id: googleClientId(),
     redirect_uri: `${location.origin}/`,
     response_type: "token",
     scope: GOOGLE_SCOPES,
@@ -342,9 +346,10 @@ function shrinkImage(file) {
 
 // ---------- the main mission ----------
 function preflight() {
-  if (!state.config.googleClientId) {
+  if (!googleClientId()) {
     setMode("error");
-    log("GOOGLE_CLIENT_ID is not set on the server. See README → Setup.", "err");
+    log("Google Client ID missing. Open SETUP and paste it (README → step 3 shows how to create one).", "err");
+    openSheet("settings");
     return false;
   }
   if (state.config.passcodeRequired && !state.passcode) {
@@ -960,6 +965,31 @@ async function loadCalendars() {
 function initSettings() {
   $("#boardDateInput").addEventListener("change", (e) => setBoardDate(e.target.value));
   $("#boardDateBtn").addEventListener("click", () => openSheet("settings"));
+  const clientId = $("#clientIdInput");
+  clientId.value = googleClientId();
+  clientId.addEventListener("change", () => {
+    const value = clientId.value.trim();
+    if (value && !CLIENT_ID_PATTERN.test(value)) {
+      log("That doesn't look like a Google Client ID. It ends with .apps.googleusercontent.com", "err");
+      return;
+    }
+    store.set("googleClientId", value);
+    store.del("google");
+    log(value ? "Google Client ID saved. Tap the core to link Google Calendar." : "Google Client ID cleared.", value ? "ok" : "dim");
+  });
+  $("#originText").textContent = location.origin;
+  $("#redirectText").textContent = `${location.origin}/`;
+  document.querySelectorAll("[data-copy]").forEach((btn) =>
+    btn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText($(`#${btn.dataset.copy}`).textContent);
+        btn.textContent = "COPIED";
+        setTimeout(() => (btn.textContent = "COPY"), 1500);
+      } catch {
+        log("Copy failed. Press and hold the text to copy it.", "warn");
+      }
+    }),
+  );
   $("#passcodeField").hidden = !state.config.passcodeRequired;
   const pass = $("#passcodeInput");
   pass.value = state.passcode;
@@ -1152,7 +1182,7 @@ async function boot() {
   } else {
     setChip("#chipGoogle", "warn");
   }
-  if (!state.config.googleClientId) log("Setup needed: GOOGLE_CLIENT_ID is missing. See README.", "err");
+  if (!googleClientId()) log("Setup needed: paste your Google Client ID in SETUP. See README.", "err");
   if (!state.config.aiReady) log("Setup needed: ANTHROPIC_API_KEY is missing. See README.", "err");
 
   setMode("idle");

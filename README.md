@@ -50,7 +50,9 @@ You need three things: an **Anthropic API key** (the AI), a **Google OAuth Clien
    * Application type: **Web application**
    * Authorised JavaScript origins: `https://YOUR-APP.vercel.app`
    * Authorised redirect URIs: `https://YOUR-APP.vercel.app/`  ← keep the trailing slash
-5. Copy the **Client ID** (ends with `.apps.googleusercontent.com`).
+   Tip: open Clerak → **SETUP**. It shows both addresses with COPY buttons.
+5. Copy the **Client ID** (ends with `.apps.googleusercontent.com`) and paste it into Clerak → **SETUP → Google Client ID**.
+   That's all Google needs; you can skip the `GOOGLE_CLIENT_ID` variable below.
 
 ### 4. Add the keys to Vercel
 Vercel → your project → *Settings → Environment Variables*:
@@ -58,7 +60,7 @@ Vercel → your project → *Settings → Environment Variables*:
 | Name | Value |
 |---|---|
 | `ANTHROPIC_API_KEY` | your key from step 1 |
-| `GOOGLE_CLIENT_ID` | the Client ID from step 3 |
+| `GOOGLE_CLIENT_ID` | optional: the Client ID from step 3 (or paste it in Clerak's SETUP instead) |
 | `CLERAK_PASSCODE` | any secret word. This stops strangers who find your link from using your AI credit. |
 
 Then *Deployments → ⋯ → Redeploy*.

@@ -178,6 +178,23 @@
           <span>Calendar</span>
           <select id="calendarSelect"><option value="primary">My calendar</option></select>
         </label>
+        <label class="field">
+          <span>Google Client ID</span>
+          <input type="text" id="clientIdInput" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="1234…apps.googleusercontent.com">
+        </label>
+        <div class="field">
+          <span>Paste these into Google Cloud when you create the Client ID</span>
+          <div class="copy-row">
+            <small>Authorised JavaScript origin</small>
+            <code id="originText"></code>
+            <button class="mini" type="button" data-copy="originText">COPY</button>
+          </div>
+          <div class="copy-row">
+            <small>Authorised redirect URI</small>
+            <code id="redirectText"></code>
+            <button class="mini" type="button" data-copy="redirectText">COPY</button>
+          </div>
+        </div>
         <label class="field" id="passcodeField">
           <span>Clerak passcode</span>
           <input type="password" id="passcodeInput" autocomplete="current-password" placeholder="Set in Vercel as CLERAK_PASSCODE">
